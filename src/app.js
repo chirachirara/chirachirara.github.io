@@ -3,6 +3,9 @@ import { createDraft, createDraftStore } from "./drafts.js";
 import { validateArchive } from "./archive.js";
 import { ic } from "./assets.js";
 import {
+  CHARACTER_TAG,
+  parseTags,
+  isCharacterNote,
   escapeHTML as esc,
   safeURL,
   scopedTags,
@@ -211,18 +214,24 @@ function sidebar() {
 }
 function card(n) {
   const src = imageURL(n.images[0]);
-  return `<article class="note-card ${state.selected === n.id ? "is-selected" : ""}" data-note="${n.id}" tabindex="0" role="button" aria-label="Открыть ${esc(n.title)}">${src ? `<img class="card-img" src="${esc(src)}" alt="Референс" loading="lazy">` : `<div class="card-img-blank">${ic("spark", 32)}<span>story fragment</span></div>`}<div class="card-body"><div class="card-project" style="--project-color:${projectColor(n.project_id)}">${esc(projectOf(n.project_id)?.title || "Без проекта")}</div><div class="card-title">${esc(n.title)}</div><p class="card-desc">${esc(n.body || "У этой истории пока только начало…")}</p><div class="card-taglist">${n.tags
+  return `<article class="note-card ${src ? "has-image" : "text-only"} ${state.selected === n.id ? "is-selected" : ""}" data-note="${n.id}" tabindex="0" role="button" aria-label="Открыть ${esc(n.title)}">${src ? `<img class="card-img" src="${esc(src)}" alt="Референс" loading="lazy">` : `<div class="card-img-blank">${ic("spark", 32)}<span>story fragment</span></div>`}<div class="card-body"><div class="card-project" style="--project-color:${projectColor(n.project_id)}">${esc(projectOf(n.project_id)?.title || "Без проекта")}</div><div class="card-title">${esc(n.title)}</div>${isCharacterNote(n) ? '<span class="character-badge">Карточка персонажа</span>' : ""}<p class="card-desc">${esc(n.body || "У этой истории пока только начало…")}</p><div class="card-taglist">${n.tags
+    .filter((tag) => tag !== CHARACTER_TAG)
     .slice(0, 4)
     .map((t) => `<span class="micro-tag">#${esc(t)}</span>`)
     .join(
       "",
     )}</div><div class="card-bottom"><span>${date(n.updated_at)}</span><button class="fave-btn ${n.favorite ? "on" : ""}" data-favorite="${n.id}" aria-label="${n.favorite ? "Убрать из избранного" : "В избранное"}" aria-pressed="${n.favorite}">${ic("heart", 16)}</button></div></div></article>`;
 }
+function boardNotes() {
+  return state.tab === "characters" && projectOf(state.nav)
+    ? archive.notes.filter(isCharacterNote)
+    : archive.notes;
+}
 function renderBoard() {
   const board = document.querySelector("#board");
   if (!board) return;
   const notes = filteredNotes(
-    archive.notes,
+    boardNotes(),
     state.nav,
     state.tag,
     state.query,
@@ -231,23 +240,24 @@ function renderBoard() {
   document.querySelector("#boardMeta").textContent = `Найдено: ${notes.length}`;
   board.innerHTML = notes.length
     ? notes.map(card).join("")
-    : `<div class="empty">${ic("spark", 32)}<h3>${state.nav === "trash" ? "Корзина пуста" : "Здесь начинается история"}</h3><p>${state.tag || state.query ? "Попробуй убрать фильтр или изменить запрос." : "Можно начать с одной строчки. Проект и теги добавишь позже."}</p>${state.nav === "trash" ? "" : '<button class="primary" data-action="new">Записать мысль</button>'}</div>`;
+    : `<div class="empty">${ic("spark", 32)}<h3>${state.nav === "trash" ? "Корзина пуста" : state.tab === "characters" ? "Здесь будут персонажи истории" : "Здесь начинается история"}</h3><p>${state.tag || state.query ? "Попробуй убрать фильтр или изменить запрос." : state.tab === "characters" ? "Создай карточку: добавь имя, описание и референсы." : "Можно начать с одной строчки. Проект и теги добавишь позже."}</p>${state.nav === "trash" ? "" : `<button class="primary" data-action="new">${state.tab === "characters" ? "Добавить персонажа" : "Записать мысль"}</button>`}</div>`;
 }
 function render() {
   if (!user) return;
   const p = projectOf(state.nav);
-  root.innerHTML = `<div class="app"><aside class="sidebar">${sidebar()}</aside><main class="main"><div class="mobile-top"><span class="mobile-brand">chirachirara.</span><div><button data-action="resume">Черновик</button> <button data-action="new">+ Заметка</button> <button data-action="logout" aria-label="Выйти из аккаунта">Выйти</button></div></div><div class="main-inner"><div class="eyebrow">${p ? "Рабочее пространство" : "Личный архив идей"}</div><div class="hero"><h1>${p ? esc(p.title) : "Всё, что пока не стало <em>историей.</em>"}</h1><button class="primary" data-action="new">${ic("plus", 16)} Новая заметка</button></div><p class="hero-sub">${p ? esc(p.summary || "У каждой истории есть начало.") : "Сцены, персонажи, странные мысли и случайные озарения."}</p><div class="mobile-projects"><select id="mobileNav" aria-label="Раздел архива">${[["all", "Все заметки"], ["favorite", "Избранное"], ["loose", "Без проекта"], ["trash", "Корзина"], ...archive.projects.map((p) => [p.id, p.title])].map(([id, title]) => `<option value="${id}" ${state.nav === id ? "selected" : ""}>${esc(title)}</option>`).join("")}</select><button data-action="newproject">+ Проект</button><button data-action="refresh">Обновить</button><button data-action="export">Экспорт</button><label class="import-label">Импорт<input type="file" id="mobileImportFile" accept="application/json" hidden></label></div>${p ? `<div class="project-tabs"><button class="${state.tab === "notes" ? "active" : ""}" data-tab="notes">Заметки</button><button class="${state.tab === "text" ? "active" : ""}" data-tab="text">Основной текст</button><button data-action="editproject">О проекте</button></div>${safeURL(p.publication_url) ? `<a class="publication-link" href="${esc(safeURL(p.publication_url))}" target="_blank" rel="noopener noreferrer">Читать опубликованную историю ↗</a>` : ""}` : ""}${
+  root.innerHTML = `<div class="app"><aside class="sidebar">${sidebar()}</aside><main class="main"><div class="mobile-top"><button class="mobile-brand" data-nav="all" aria-label="На главную">chirachirara.</button><div><button data-action="resume">Черновик</button> <button data-action="new">${p && state.tab === "characters" ? "+ Персонаж" : "+ Заметка"}</button> <button data-action="logout" aria-label="Выйти из аккаунта">Выйти</button></div></div><div class="main-inner">${p ? `<button class="back-home" data-nav="all">${ic("back", 16)} На главную</button>` : ""}<div class="eyebrow">${p ? "Рабочее пространство" : "Личный архив идей"}</div><div class="hero"><h1>${p ? esc(p.title) : "Всё, что пока не стало <em>историей.</em>"}</h1><button class="primary" data-action="new">${ic("plus", 16)} ${p && state.tab === "characters" ? "Новая карточка" : "Новая заметка"}</button></div><p class="hero-sub">${p ? esc(p.summary || "У каждой истории есть начало.") : "Сцены, персонажи, странные мысли и случайные озарения."}</p><div class="mobile-projects"><select id="mobileNav" aria-label="Раздел архива">${[["all", "Все заметки"], ["favorite", "Избранное"], ["loose", "Без проекта"], ["trash", "Корзина"], ...archive.projects.map((p) => [p.id, p.title])].map(([id, title]) => `<option value="${id}" ${state.nav === id ? "selected" : ""}>${esc(title)}</option>`).join("")}</select><button data-action="newproject">+ Проект</button><button data-action="refresh">Обновить</button><button data-action="export">Экспорт</button><label class="import-label">Импорт<input type="file" id="mobileImportFile" accept="application/json" hidden></label></div>${p ? `<div class="project-tabs"><button class="${state.tab === "notes" ? "active" : ""}" data-tab="notes">Заметки</button><button class="${state.tab === "characters" ? "active" : ""}" data-tab="characters">Персонажи</button><button class="${state.tab === "text" ? "active" : ""}" data-tab="text">Основной текст</button><button data-action="editproject">О проекте</button></div>${safeURL(p.publication_url) ? `<a class="publication-link" href="${esc(safeURL(p.publication_url))}" target="_blank" rel="noopener noreferrer">Читать опубликованную историю ↗</a>` : ""}` : ""}${
     p && state.tab === "text"
       ? `<section class="manuscript-preview"><div class="board-head"><h2>Текст в работе</h2><div class="manuscript-actions"><button class="ghost" data-action="downloadtext">Скачать .txt</button><button class="ghost" data-action="manuscript">Редактировать</button></div></div><div class="detail-content">${esc(p.manuscript || "Тут можно собирать основной текст истории. Наброски и референсы останутся на вкладке «Заметки».")}</div></section>`
       : `<div class="control-row"><div class="search-wrap">${ic("search", 17)}<input id="search" type="search" placeholder="Искать по тексту, персонажам, тегам…" value="${esc(state.query)}" aria-label="Поиск заметок"></div><button class="sort-btn" data-action="sort">${ic("sort", 15)} ${state.sort === "new" ? "Недавние" : state.sort === "alpha" ? "По названию" : "Избранные сначала"}</button></div><div class="divider-heading"><span class="section-title">${p ? "Теги этого проекта" : "Теги раздела"}</span>${state.tag ? '<button class="auth-link" data-action="cleartag">Сбросить фильтр</button>' : ""}</div><div class="tag-scroller">${
-          scopedTags(archive.notes, state.nav)
+          scopedTags(boardNotes(), state.nav)
+            .filter(([tag]) => tag !== CHARACTER_TAG)
             .map(
               ([tag, count]) =>
                 `<button class="tag-pill ${tag === state.tag ? "chosen" : ""}" data-tag="${esc(tag)}"># ${esc(tag)} <span class="tag-num">${count}</span></button>`,
             )
             .join("") ||
           '<span class="hint">Теги появятся вместе с заметками.</span>'
-        }</div><div class="board-head"><h2>${esc(navTitle())}</h2><span class="board-meta" id="boardMeta"></span></div><div class="board-layout" id="board"></div>`
+        }</div><div class="board-head"><h2>${state.tab === "characters" && p ? "Персонажи" : esc(navTitle())}</h2><span class="board-meta" id="boardMeta"></span></div><div class="board-layout" id="board"></div>`
   }<div class="footer-note">chirachirara · личные тексты хранятся в базе</div></div></main><div class="mobile-shade" data-action="close"></div><aside class="inspector" id="inspector"></aside></div>`;
   document.body.classList.toggle("detail-open", state.open);
   renderBoard();
@@ -272,7 +282,10 @@ function statsLabel(text) {
   return `Слов: ${words.toLocaleString("ru-RU")} · Знаков с пробелами: ${characters.toLocaleString("ru-RU")}`;
 }
 function detail(n) {
-  return `<div class="inspector-inner"><div class="detail-top"><span class="detail-tag">${n.deleted_at ? "В корзине" : "Фрагмент истории"}</span><div class="detail-buttons">${n.deleted_at ? '<button class="ghost" data-action="restore">Восстановить</button>' : '<button class="icon-btn" data-action="edit" aria-label="Редактировать">' + ic("edit", 16) + "</button>"}<button class="icon-btn" data-action="close" aria-label="Закрыть">${ic("close", 16)}</button></div></div><div class="detail-header"><h2>${esc(n.title)}</h2><div class="detail-info">${projectOf(n.project_id) ? `<button class="project-jump" data-project-jump="${n.project_id}">${esc(projectOf(n.project_id).title)} ↗</button>` : "Без проекта"} · ${date(n.updated_at)}</div></div>${n.images.map((path) => (imageURL(path) ? `<img class="detail-cover" src="${esc(imageURL(path))}" alt="Референс">` : "")).join("")}<div class="detail-content">${esc(n.body)}</div><p class="text-stats">${statsLabel(n.body)}</p><div class="detail-section"><h3>Теги</h3><div class="detail-tags">${n.tags.map((t) => `<button data-tag="${esc(t)}"># ${esc(t)}</button>`).join("")}</div></div>${
+  return `<div class="inspector-inner"><div class="detail-top"><span class="detail-tag">${n.deleted_at ? "В корзине" : isCharacterNote(n) ? "Карточка персонажа" : "Фрагмент истории"}</span><div class="detail-buttons">${n.deleted_at ? '<button class="ghost" data-action="restore">Восстановить</button>' : ""}<button class="icon-btn" data-action="close" aria-label="Закрыть заметку">${ic("close", 16)}</button></div></div><div class="note-actions"><button class="ghost" data-action="close">${ic("back", 16)} К заметкам</button>${n.deleted_at ? "" : `<button class="ghost" data-action="edit">${ic("edit", 16)} Изменить</button><button class="danger" data-action="delete">${ic("trash", 16)} В корзину</button>`}</div><div class="detail-header"><h2>${esc(n.title)}</h2><div class="detail-info">${projectOf(n.project_id) ? `<button class="project-jump" data-project-jump="${n.project_id}">${esc(projectOf(n.project_id).title)} ↗</button>` : "Без проекта"} · ${date(n.updated_at)}</div></div>${n.images.map((path) => (imageURL(path) ? `<img class="detail-cover" src="${esc(imageURL(path))}" alt="Референс">` : "")).join("")}<div class="detail-content">${esc(n.body)}</div><p class="text-stats">${statsLabel(n.body)}</p><div class="detail-section"><h3>Теги</h3><div class="detail-tags">${n.tags
+    .filter((t) => t !== CHARACTER_TAG)
+    .map((t) => `<button data-tag="${esc(t)}"># ${esc(t)}</button>`)
+    .join("")}</div></div>${
     n.links.length
       ? `<div class="detail-section"><h3>Ссылки и источники</h3>${n.links
           .filter((l) => safeURL(l.url))
@@ -309,9 +322,15 @@ function renderInspector() {
         : `<div class="inspector-placeholder">${state.open ? '<button class="icon-btn" data-action="close" aria-label="Закрыть">×</button>' : ""}<div class="orb">${ic("spark", 34)}</div><h2>Идеи любят компанию.</h2><p>Открой заметку или запиши первую мысль.</p><button class="ghost" data-action="resume">Продолжить черновик</button></div>`;
 }
 function editor() {
-  const d = state.draft,
-    isNote = d.kind === "note";
-  return `<div class="inspector-inner ${d.kind === "manuscript" ? "wide-editor" : ""}"><div class="detail-top"><span class="detail-tag">${isNote ? "Записать, пока не забылось" : d.kind === "manuscript" ? "Текст в работе" : "О проекте"}</span><button class="icon-btn" data-action="close" aria-label="Закрыть">${ic("close", 16)}</button></div><h2 class="edit-title">${isNote ? "Фрагмент истории" : esc(d.title || "Новый проект")}</h2>${d.kind === "manuscript" ? "" : `<label class="field"><span>Название${isNote ? " · необязательно" : ""}</span><input id="editTitle" value="${esc(d.title)}" maxlength="150" placeholder="${isNote ? "Можно начать сразу с текста" : "Название истории"}"></label>`}${isNote ? `<label class="field"><span>Проект · можно переместить заметку</span><select id="editProject"><option value="">Без проекта</option>${archive.projects.map((p) => `<option value="${p.id}" ${d.project_id === p.id ? "selected" : ""}>${esc(p.title)}</option>`).join("")}</select></label><label class="field"><span>Сама идея</span><textarea id="editBody" placeholder="Диалог, сцена, вопрос…">${esc(d.body)}</textarea></label><label class="field"><span>Теги через запятую</span><input id="editTags" value="${esc(d.tagsText)}" placeholder="персонажи, магия, сцена"></label><div class="field"><span>Референсы · до четырёх</span><div class="edit-img-grid">${d.images.map((path, i) => `<div class="edit-thumb">${imageURL(path) ? `<img src="${esc(imageURL(path))}" alt="Референс">` : ""}<button data-rmimage="${i}" aria-label="Убрать референс">×</button></div>`).join("")}</div><label class="upload-button">Добавить картинки<input id="uploadImage" type="file" accept="image/*" multiple hidden></label></div><div class="field"><span>Ссылки</span>${d.links.map((l, i) => `<div class="link-edit"><input data-link-index="${i}" data-link-field="title" value="${esc(l.title)}" placeholder="Название" aria-label="Название ссылки"><input data-link-index="${i}" data-link-field="url" value="${esc(l.url)}" placeholder="https://…" aria-label="Адрес ссылки"><button data-rmlink="${i}" aria-label="Убрать ссылку">×</button></div>`).join("")}<button class="small-add" data-action="addlink">Добавить ссылку</button></div>` : d.kind === "project" ? `<label class="field"><span>Замысел</span><textarea id="editSummary" placeholder="О чём эта история?">${esc(d.summary)}</textarea></label><label class="field"><span>Ссылка на опубликованный текст</span><input id="editPublication" type="url" value="${esc(d.publication_url)}" placeholder="https://…"></label>` : `<label class="field"><span>Основной черновик</span><textarea id="editManuscript" class="manuscript-input" placeholder="Начни с любой сцены…">${esc(d.manuscript)}</textarea></label>`}${isNote || d.kind === "manuscript" ? `<p class="text-stats" id="textStats">${statsLabel(isNote ? d.body : d.manuscript)}</p>` : ""}<p class="hint" id="draftStatus" role="status">Черновик на устройстве · ещё не в базе</p><div class="edit-actions"><button class="ghost" data-action="discard">Отменить правки</button><button class="primary" data-action="save">Сохранить в базе</button></div>${d.id ? '<button class="auth-link" data-action="savecopy">Сохранить отдельную копию</button>' : ""}${isNote && d.id ? '<button class="danger" data-action="delete">В корзину</button>' : ""}</div>`;
+  const d = state.draft;
+  if (d.kind === "note" && !d.noteType) {
+    const tags = parseTags(d.tagsText || "");
+    d.noteType = tags.includes(CHARACTER_TAG) ? "character" : "note";
+    d.tagsText = tags.filter((tag) => tag !== CHARACTER_TAG).join(", ");
+  }
+  const isNote = d.kind === "note",
+    isCharacter = d.noteType === "character";
+  return `<div class="inspector-inner ${d.kind === "manuscript" ? "wide-editor" : ""}"><div class="detail-top"><span class="detail-tag">${isNote ? "Записать, пока не забылось" : d.kind === "manuscript" ? "Текст в работе" : "О проекте"}</span><button class="icon-btn" data-action="close" aria-label="Закрыть">${ic("close", 16)}</button></div><h2 class="edit-title">${isNote ? (isCharacter ? "Карточка персонажа" : "Фрагмент истории") : esc(d.title || "Новый проект")}</h2>${d.kind === "manuscript" ? "" : `<label class="field"><span>Название${isNote ? " · необязательно" : ""}</span><input id="editTitle" value="${esc(d.title)}" maxlength="150" placeholder="${isNote ? "Можно начать сразу с текста" : "Название истории"}"></label>`}${isNote ? `<label class="field"><span>Тип заметки</span><select id="editNoteType"><option value="note" ${!isCharacter ? "selected" : ""}>Обычная заметка</option><option value="character" ${isCharacter ? "selected" : ""}>Карточка персонажа</option></select></label><p class="hint">Карточки появятся во вкладке «Персонажи» выбранного проекта и останутся среди заметок.</p><label class="field"><span>Проект · можно переместить заметку</span><select id="editProject"><option value="">Без проекта</option>${archive.projects.map((p) => `<option value="${p.id}" ${d.project_id === p.id ? "selected" : ""}>${esc(p.title)}</option>`).join("")}</select></label><label class="field"><span>Сама идея</span><textarea id="editBody" placeholder="Диалог, сцена, вопрос…">${esc(d.body)}</textarea></label><label class="field"><span>Теги через запятую</span><input id="editTags" value="${esc(d.tagsText)}" placeholder="персонажи, магия, сцена"></label><div class="field"><span>Референсы · до четырёх</span><div class="edit-img-grid">${d.images.map((path, i) => `<div class="edit-thumb">${imageURL(path) ? `<img src="${esc(imageURL(path))}" alt="Референс">` : ""}<button data-rmimage="${i}" aria-label="Убрать референс">×</button></div>`).join("")}</div><label class="upload-button">Добавить картинки<input id="uploadImage" type="file" accept="image/*" multiple hidden></label></div><div class="field"><span>Ссылки</span>${d.links.map((l, i) => `<div class="link-edit"><input data-link-index="${i}" data-link-field="title" value="${esc(l.title)}" placeholder="Название" aria-label="Название ссылки"><input data-link-index="${i}" data-link-field="url" value="${esc(l.url)}" placeholder="https://…" aria-label="Адрес ссылки"><button data-rmlink="${i}" aria-label="Убрать ссылку">×</button></div>`).join("")}<button class="small-add" data-action="addlink">Добавить ссылку</button></div>` : d.kind === "project" ? `<label class="field"><span>Замысел</span><textarea id="editSummary" placeholder="О чём эта история?">${esc(d.summary)}</textarea></label><label class="field"><span>Ссылка на опубликованный текст</span><input id="editPublication" type="url" value="${esc(d.publication_url)}" placeholder="https://…"></label>` : `<label class="field"><span>Основной черновик</span><textarea id="editManuscript" class="manuscript-input" placeholder="Начни с любой сцены…">${esc(d.manuscript)}</textarea></label>`}${isNote || d.kind === "manuscript" ? `<p class="text-stats" id="textStats">${statsLabel(isNote ? d.body : d.manuscript)}</p>` : ""}<p class="hint" id="draftStatus" role="status">Черновик на устройстве · ещё не в базе</p><div class="edit-actions"><button class="ghost" data-action="discard">Отменить правки</button><button class="primary" data-action="save">Сохранить в базе</button></div>${d.id ? '<button class="auth-link" data-action="savecopy">Сохранить отдельную копию</button>' : ""}${isNote && d.id ? '<button class="danger" data-action="delete">В корзину</button>' : ""}</div>`;
 }
 function capture() {
   const d = state.draft;
@@ -319,6 +338,7 @@ function capture() {
   for (const [id, key] of [
     ["editTitle", "title"],
     ["editProject", "project_id"],
+    ["editNoteType", "noteType"],
     ["editBody", "body"],
     ["editTags", "tagsText"],
     ["editSummary", "summary"],
@@ -352,13 +372,21 @@ function newNote() {
     body: "",
     project_id: projectOf(state.nav)?.id || "",
     tagsText: "",
+    noteType:
+      state.tab === "characters" && projectOf(state.nav) ? "character" : "note",
     images: [],
     links: [],
   });
 }
 function editNote() {
   const n = noteOf(state.selected);
-  if (n) openDraft({ ...n, kind: "note", tagsText: n.tags.join(", ") });
+  if (n)
+    openDraft({
+      ...n,
+      kind: "note",
+      noteType: isCharacterNote(n) ? "character" : "note",
+      tagsText: n.tags.filter((tag) => tag !== CHARACTER_TAG).join(", "),
+    });
 }
 function editProject(kind) {
   const p = projectOf(state.nav);
@@ -401,7 +429,10 @@ async function save() {
     if (epoch !== sessionEpoch) return;
     replaceRecord("notes", saved);
     state.selected = saved.id;
-    state.tab = "notes";
+    state.tab =
+      state.tab === "characters" && fields.tags.includes(CHARACTER_TAG)
+        ? "characters"
+        : "notes";
     if (
       state.nav === "trash" ||
       (projectOf(state.nav) && fields.project_id !== state.nav)
@@ -819,9 +850,10 @@ async function action(name) {
       await addComment();
       break;
     case "delete": {
-      const n = noteOf(state.draft?.id);
+      const n = noteOf(state.draft?.id || state.selected);
       if (
         n &&
+        !n.deleted_at &&
         confirm("Переместить заметку в корзину? Её можно восстановить.")
       ) {
         const epoch = sessionEpoch;
@@ -830,7 +862,7 @@ async function action(name) {
         });
         assertSession(epoch);
         replaceRecord("notes", saved);
-        clearDraft();
+        if (state.draft?.id === n.id) clearDraft();
         state.draft = null;
         state.selected = null;
         state.open = false;
@@ -941,6 +973,9 @@ root.addEventListener("click", (e) => {
     if (!leaveEditor()) return;
     state.recovering = false;
     state.tab = tab.dataset.tab;
+    state.tag = null;
+    state.query = "";
+    state.selected = null;
     state.open = false;
     render();
     return;
@@ -1014,6 +1049,12 @@ root.addEventListener("input", (e) => {
   }
 });
 root.addEventListener("change", (e) => {
+  if (e.target.id === "editNoteType") {
+    capture();
+    rememberDraft({ readForm: false });
+    renderInspector();
+    document.querySelector("#editNoteType")?.focus();
+  }
   if (e.target.id === "uploadImage") run(() => uploadFiles(e.target.files));
   if (["importFile", "mobileImportFile"].includes(e.target.id))
     run(() => importLegacy(e.target.files[0]));

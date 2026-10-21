@@ -1,3 +1,9 @@
+export const CHARACTER_TAG = "карточка персонажа";
+
+export function isCharacterNote(note) {
+  return note.tags.includes(CHARACTER_TAG);
+}
+
 export function escapeHTML(value) {
   return String(value ?? "").replace(
     /[&<>"']/g,
@@ -76,11 +82,16 @@ export function noteInput(draft) {
     .filter((l) => l.url);
   if (links.some((l) => !safeURL(l.url)))
     throw new Error("В ссылках нужен полный адрес с https:// или http://");
+  const tags = parseTags(draft.tagsText);
+  const noteType =
+    draft.noteType ?? (tags.includes(CHARACTER_TAG) ? "character" : "note");
+  const regularTags = tags.filter((tag) => tag !== CHARACTER_TAG);
   return {
     title,
     body,
     project_id: draft.project_id || null,
-    tags: parseTags(draft.tagsText),
+    tags:
+      noteType === "character" ? [...regularTags, CHARACTER_TAG] : regularTags,
     images: draft.images,
     links,
   };

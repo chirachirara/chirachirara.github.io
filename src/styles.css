@@ -1478,3 +1478,177 @@ a {
   flex-wrap: wrap;
   gap: 12px;
 }
+
+/* Navigation stays visible in both the project and the note view. */
+.back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--purple-dark);
+  min-height: 44px;
+  padding: 0 4px;
+  margin-bottom: 8px;
+}
+.note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.note-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 44px;
+  margin: 0;
+}
+.card-title,
+.card-project,
+.detail-header h2,
+.hero h1 {
+  overflow-wrap: anywhere;
+}
+.card-project:before {
+  flex-shrink: 0;
+}
+@media (max-width: 1040px) {
+  .detail-open .main {
+    overflow: hidden;
+  }
+}
+@media (max-width: 650px) {
+  .mobile-top {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+  .mobile-top button.mobile-brand {
+    border: 0;
+    background: transparent;
+    color: white;
+    padding: 0;
+    min-height: 44px;
+    font-size: 23px;
+  }
+  .mobile-top > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .mobile-top button {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .mobile-projects {
+    flex-wrap: wrap;
+    overflow: visible;
+    white-space: normal;
+    margin-bottom: 16px;
+  }
+  .mobile-projects select {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
+  }
+  .mobile-projects button,
+  .mobile-projects .import-label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .note-card {
+    grid-template-columns: 80px minmax(0, 1fr);
+    min-height: 0;
+  }
+  .note-card.text-only {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .text-only .card-img-blank {
+    display: none;
+  }
+  .card-img {
+    width: 80px;
+    min-height: 120px;
+  }
+  .card-body {
+    padding: 12px 14px;
+  }
+  .card-title {
+    font-size: 16px;
+  }
+  .card-desc {
+    font-size: 13px;
+  }
+  .card-taglist:empty {
+    display: none;
+  }
+  .card-bottom {
+    margin-top: 10px;
+    padding-top: 0;
+    font-size: 12px;
+  }
+  .fave-btn,
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .inspector-inner {
+    padding: 12px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+  .detail-top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    gap: 8px;
+    background: white;
+    padding: 8px 0;
+  }
+  .field input,
+  .field select,
+  .field textarea,
+  .search-wrap input,
+  .mobile-projects select,
+  .link-edit input,
+  .comment-entry textarea {
+    font-size: 16px;
+  }
+  .project-tabs {
+    flex-wrap: wrap;
+  }
+  .project-tabs button {
+    min-height: 44px;
+  }
+  .link-edit {
+    flex-wrap: wrap;
+  }
+  .link-edit input {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .edit-actions {
+    flex-wrap: wrap;
+  }
+  .edit-actions button {
+    flex: 1 1 140px;
+    min-height: 44px;
+  }
+}
+
+.character-badge {
+  align-self: flex-start;
+  display: inline-block;
+  color: var(--purple-dark);
+  background: var(--purple-light);
+  border-radius: 6px;
+  padding: 4px 7px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 650;
+}
