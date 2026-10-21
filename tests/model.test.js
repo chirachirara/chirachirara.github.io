@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CHARACTER_TAG,
+  isCharacterNote,
   parseTags,
   scopedTags,
   noteInput,
@@ -107,4 +109,62 @@ test("favorite-first sorting respects project scope and excludes trash", () => {
     filteredNotes(items, "a", null, "", "favorite").map((n) => n.id),
     ["1", "5"],
   );
+});
+
+test("character type uses a reserved tag without consuming ordinary character names", () => {
+  const draft = {
+    title: "Суна",
+    body: "Его история",
+    project_id: "a",
+    noteType: "character",
+    tagsText: "суна, кита",
+    images: [],
+    links: [],
+  };
+  const character = noteInput(draft);
+  assert.deepEqual(character.tags, ["суна", "кита", CHARACTER_TAG]);
+  assert.equal(isCharacterNote(character), true);
+  assert.equal(isCharacterNote({ tags: ["суна", "персонажи"] }), false);
+  const ordinary = noteInput({
+    ...draft,
+    noteType: "note",
+    tagsText: character.tags.join(","),
+  });
+  assert.deepEqual(ordinary.tags, ["суна", "кита"]);
+  assert.equal(ordinary.body, draft.body);
+});
+
+test("legacy drafts and archive round trips preserve the character marker", () => {
+  const draft = {
+    title: "Суна",
+    body: "",
+    tagsText: "#Карточка персонажа, суна, карточка персонажа",
+    images: [],
+    links: [],
+  };
+  const saved = noteInput(draft);
+  assert.deepEqual(saved.tags, ["суна", CHARACTER_TAG]);
+  const restored = JSON.parse(JSON.stringify(saved));
+  assert.equal(isCharacterNote(restored), true);
+  assert.deepEqual(
+    noteInput({ ...restored, tagsText: restored.tags.join(",") }).tags,
+    saved.tags,
+  );
+});
+
+test("character list stays within the project, excludes trash, and supports search", () => {
+  const items = [
+    { ...notes[0], id: "character-a", tags: ["суна", CHARACTER_TAG] },
+    { ...notes[1], id: "character-b", tags: [CHARACTER_TAG] },
+    { ...notes[3], id: "deleted-character", tags: [CHARACTER_TAG] },
+    { ...notes[0], id: "scene", tags: ["суна"] },
+  ];
+  const characters = items.filter(isCharacterNote);
+  assert.deepEqual(
+    filteredNotes(characters, "a", null, "", "alpha").map((n) => n.id),
+    ["character-a"],
+  );
+  assert.equal(filteredNotes(characters, "a", null, "офис", "new").length, 0);
+  assert.equal(filteredNotes(items, "a", "суна", "", "new").length, 2);
+  assert.equal(filteredNotes(characters, "trash", null, "", "new").length, 1);
 });
