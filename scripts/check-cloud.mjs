@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 const client = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-for (const table of ['projects', 'notes']) {
+for (const table of ['projects', 'notes', 'feedback']) {
   const { data, error } = await client.from(table).select('id').limit(1);
   if (!error || error.code !== '42501' || data !== null) {
     throw new Error(`Anonymous access check failed for ${table}: ${error?.message || 'data accessible'}`);
