@@ -1,3 +1,4 @@
+import { characterProfile, characterSearchText } from "./character-profile.js";
 export const CHARACTER_TAG = "карточка персонажа";
 
 export function isCharacterNote(note) {
@@ -57,7 +58,13 @@ export function filteredNotes(notes, nav, tag, query, sort) {
       (n) =>
         (!tag || n.tags.includes(tag)) &&
         (!q ||
-          [n.title, n.body, ...n.tags, ...n.comments.map((c) => c.text)]
+          [
+            n.title,
+            n.body,
+            characterSearchText(n.character_profile),
+            ...n.tags,
+            ...n.comments.map((c) => c.text),
+          ]
             .join(" ")
             .toLocaleLowerCase("ru")
             .includes(q)),
@@ -92,6 +99,9 @@ export function noteInput(draft) {
     project_id: draft.project_id || null,
     tags:
       noteType === "character" ? [...regularTags, CHARACTER_TAG] : regularTags,
+    ...(draft.character_profile !== undefined || noteType === "character"
+      ? { character_profile: characterProfile(draft.character_profile) }
+      : {}),
     images: draft.images,
     links,
   };

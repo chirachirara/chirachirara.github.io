@@ -1,3 +1,4 @@
+import { characterProfile } from "./character-profile.js";
 // Every editor owns a separate draft. A save in one tab must never erase another tab.
 export function createDraft(record) {
   const { _localId, _origin, create_id, ...fields } = structuredClone(record);
@@ -10,6 +11,11 @@ export function createDraft(record) {
 
 function validDraft(draft) {
   if (!draft || typeof draft.title !== "string") return false;
+  try {
+    characterProfile(draft.character_profile);
+  } catch {
+    return false;
+  }
   if (draft.kind === "manuscript") return typeof draft.manuscript === "string";
   if (draft.kind === "project")
     return (

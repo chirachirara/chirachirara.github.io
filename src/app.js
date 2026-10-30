@@ -1,4 +1,10 @@
 import "./styles.css";
+import { characterProfile, hasCharacterData } from "./character-profile.js";
+import {
+  characterEditor,
+  captureCharacter,
+  characterDetail,
+} from "./character-view.js";
 import { setupFeedback } from "./feedback.js";
 import { createDraft, createDraftStore } from "./drafts.js";
 import { validateArchive } from "./archive.js";
@@ -284,7 +290,7 @@ function statsLabel(text) {
   return `Слов: ${words.toLocaleString("ru-RU")} · Знаков с пробелами: ${characters.toLocaleString("ru-RU")}`;
 }
 function detail(n) {
-  return `<div class="inspector-inner"><div class="detail-top"><span class="detail-tag">${n.deleted_at ? "В корзине" : isCharacterNote(n) ? "Карточка персонажа" : "Фрагмент истории"}</span><div class="detail-buttons">${n.deleted_at ? '<button class="ghost" data-action="restore">Восстановить</button>' : ""}<button class="icon-btn" data-action="close" aria-label="Закрыть заметку">${ic("close", 16)}</button></div></div><div class="note-actions"><button class="ghost" data-action="close">${ic("back", 16)} К заметкам</button>${n.deleted_at ? "" : `<button class="ghost" data-action="edit">${ic("edit", 16)} Изменить</button><button class="danger" data-action="delete">${ic("trash", 16)} В корзину</button>`}</div><div class="detail-header"><h2>${esc(n.title)}</h2><div class="detail-info">${projectOf(n.project_id) ? `<button class="project-jump" data-project-jump="${n.project_id}">${esc(projectOf(n.project_id).title)} ↗</button>` : "Без проекта"} · ${date(n.updated_at)}</div></div>${n.images.map((path) => (imageURL(path) ? `<img class="detail-cover" src="${esc(imageURL(path))}" alt="Референс">` : "")).join("")}<div class="detail-content">${esc(n.body)}</div><p class="text-stats">${statsLabel(n.body)}</p><div class="detail-section"><h3>Теги</h3><div class="detail-tags">${n.tags
+  return `<div class="inspector-inner"><div class="detail-top"><span class="detail-tag">${n.deleted_at ? "В корзине" : isCharacterNote(n) ? "Карточка персонажа" : "Фрагмент истории"}</span><div class="detail-buttons">${n.deleted_at ? '<button class="ghost" data-action="restore">Восстановить</button>' : ""}<button class="icon-btn" data-action="close" aria-label="Закрыть заметку">${ic("close", 16)}</button></div></div><div class="note-actions"><button class="ghost" data-action="close">${ic("back", 16)} К заметкам</button>${n.deleted_at ? "" : `<button class="ghost" data-action="edit">${ic("edit", 16)} Изменить</button><button class="danger" data-action="delete">${ic("trash", 16)} В корзину</button>`}</div><div class="detail-header"><h2>${esc(n.title)}</h2><div class="detail-info">${projectOf(n.project_id) ? `<button class="project-jump" data-project-jump="${n.project_id}">${esc(projectOf(n.project_id).title)} ↗</button>` : "Без проекта"} · ${date(n.updated_at)}</div></div>${n.images.map((path) => (imageURL(path) ? `<img class="detail-cover" src="${esc(imageURL(path))}" alt="Референс">` : "")).join("")}${isCharacterNote(n) ? characterDetail(n.character_profile) : ""}<div class="detail-content">${esc(n.body)}</div><p class="text-stats">${statsLabel(n.body)}</p><div class="detail-section"><h3>Теги</h3><div class="detail-tags">${n.tags
     .filter((t) => t !== CHARACTER_TAG)
     .map((t) => `<button data-tag="${esc(t)}"># ${esc(t)}</button>`)
     .join("")}</div></div>${
@@ -332,11 +338,12 @@ function editor() {
   }
   const isNote = d.kind === "note",
     isCharacter = d.noteType === "character";
-  return `<div class="inspector-inner ${d.kind === "manuscript" ? "wide-editor" : ""}"><div class="detail-top"><span class="detail-tag">${isNote ? "Записать, пока не забылось" : d.kind === "manuscript" ? "Текст в работе" : "О проекте"}</span><button class="icon-btn" data-action="close" aria-label="Закрыть">${ic("close", 16)}</button></div><h2 class="edit-title">${isNote ? (isCharacter ? "Карточка персонажа" : "Фрагмент истории") : esc(d.title || "Новый проект")}</h2>${d.kind === "manuscript" ? "" : `<label class="field"><span>Название${isNote ? " · необязательно" : ""}</span><input id="editTitle" value="${esc(d.title)}" maxlength="150" placeholder="${isNote ? "Можно начать сразу с текста" : "Название истории"}"></label>`}${isNote ? `<label class="field"><span>Тип заметки</span><select id="editNoteType"><option value="note" ${!isCharacter ? "selected" : ""}>Обычная заметка</option><option value="character" ${isCharacter ? "selected" : ""}>Карточка персонажа</option></select></label><p class="hint">Карточки появятся во вкладке «Персонажи» выбранного проекта и останутся среди заметок.</p><label class="field"><span>Проект · можно переместить заметку</span><select id="editProject"><option value="">Без проекта</option>${archive.projects.map((p) => `<option value="${p.id}" ${d.project_id === p.id ? "selected" : ""}>${esc(p.title)}</option>`).join("")}</select></label><label class="field"><span>Сама идея</span><textarea id="editBody" placeholder="Диалог, сцена, вопрос…">${esc(d.body)}</textarea></label><label class="field"><span>Теги через запятую</span><input id="editTags" value="${esc(d.tagsText)}" placeholder="персонажи, магия, сцена"></label><div class="field"><span>Референсы · до четырёх</span><div class="edit-img-grid">${d.images.map((path, i) => `<div class="edit-thumb">${imageURL(path) ? `<img src="${esc(imageURL(path))}" alt="Референс">` : ""}<button data-rmimage="${i}" aria-label="Убрать референс">×</button></div>`).join("")}</div><label class="upload-button">Добавить картинки<input id="uploadImage" type="file" accept="image/*" multiple hidden></label></div><div class="field"><span>Ссылки</span>${d.links.map((l, i) => `<div class="link-edit"><input data-link-index="${i}" data-link-field="title" value="${esc(l.title)}" placeholder="Название" aria-label="Название ссылки"><input data-link-index="${i}" data-link-field="url" value="${esc(l.url)}" placeholder="https://…" aria-label="Адрес ссылки"><button data-rmlink="${i}" aria-label="Убрать ссылку">×</button></div>`).join("")}<button class="small-add" data-action="addlink">Добавить ссылку</button></div>` : d.kind === "project" ? `<label class="field"><span>Замысел</span><textarea id="editSummary" placeholder="О чём эта история?">${esc(d.summary)}</textarea></label><label class="field"><span>Ссылка на опубликованный текст</span><input id="editPublication" type="url" value="${esc(d.publication_url)}" placeholder="https://…"></label>` : `<label class="field"><span>Основной черновик</span><textarea id="editManuscript" class="manuscript-input" placeholder="Начни с любой сцены…">${esc(d.manuscript)}</textarea></label>`}${isNote || d.kind === "manuscript" ? `<p class="text-stats" id="textStats">${statsLabel(isNote ? d.body : d.manuscript)}</p>` : ""}<p class="hint" id="draftStatus" role="status">Черновик на устройстве · ещё не в базе</p><div class="edit-actions"><button class="ghost" data-action="discard">Отменить правки</button><button class="primary" data-action="save">Сохранить в базе</button></div>${d.id ? '<button class="auth-link" data-action="savecopy">Сохранить отдельную копию</button>' : ""}${isNote && d.id ? '<button class="danger" data-action="delete">В корзину</button>' : ""}</div>`;
+  return `<div class="inspector-inner ${d.kind === "manuscript" ? "wide-editor" : ""}"><div class="detail-top"><span class="detail-tag">${isNote ? "Записать, пока не забылось" : d.kind === "manuscript" ? "Текст в работе" : "О проекте"}</span><button class="icon-btn" data-action="close" aria-label="Закрыть">${ic("close", 16)}</button></div><h2 class="edit-title">${isNote ? (isCharacter ? "Карточка персонажа" : "Фрагмент истории") : esc(d.title || "Новый проект")}</h2>${d.kind === "manuscript" ? "" : `<label class="field"><span>${isNote && isCharacter ? "Имя персонажа" : "Название"}${isNote ? " · необязательно" : ""}</span><input id="editTitle" value="${esc(d.title)}" maxlength="150" placeholder="${isNote ? "Можно начать сразу с текста" : "Название истории"}"></label>`}${isNote ? `<label class="field"><span>Тип заметки</span><select id="editNoteType"><option value="note" ${!isCharacter ? "selected" : ""}>Обычная заметка</option><option value="character" ${isCharacter ? "selected" : ""}>Карточка персонажа</option></select></label><p class="hint">Карточки появятся во вкладке «Персонажи» выбранного проекта и останутся среди заметок.</p><label class="field"><span>Проект · можно переместить заметку</span><select id="editProject"><option value="">Без проекта</option>${archive.projects.map((p) => `<option value="${p.id}" ${d.project_id === p.id ? "selected" : ""}>${esc(p.title)}</option>`).join("")}</select></label>${isCharacter ? characterEditor(d) : ""}<label class="field"><span>${isCharacter ? "Свободное описание" : "Сама идея"}</span><textarea id="editBody" aria-label="${isCharacter ? "Свободное описание" : "Сама идея"}" placeholder="${isCharacter ? "Любые детали, которые не вошли в анкету…" : "Диалог, сцена, вопрос…"}">${esc(d.body)}</textarea></label><label class="field"><span>Теги через запятую</span><input id="editTags" value="${esc(d.tagsText)}" placeholder="персонажи, магия, сцена"></label><div class="field"><span>Референсы · до четырёх</span><div class="edit-img-grid">${d.images.map((path, i) => `<div class="edit-thumb">${imageURL(path) ? `<img src="${esc(imageURL(path))}" alt="Референс">` : ""}<button data-rmimage="${i}" aria-label="Убрать референс">×</button></div>`).join("")}</div><label class="upload-button">Добавить картинки<input id="uploadImage" type="file" accept="image/*" multiple hidden></label></div><div class="field"><span>Ссылки</span>${d.links.map((l, i) => `<div class="link-edit"><input data-link-index="${i}" data-link-field="title" value="${esc(l.title)}" placeholder="Название" aria-label="Название ссылки"><input data-link-index="${i}" data-link-field="url" value="${esc(l.url)}" placeholder="https://…" aria-label="Адрес ссылки"><button data-rmlink="${i}" aria-label="Убрать ссылку">×</button></div>`).join("")}<button class="small-add" data-action="addlink">Добавить ссылку</button></div>` : d.kind === "project" ? `<label class="field"><span>Замысел</span><textarea id="editSummary" placeholder="О чём эта история?">${esc(d.summary)}</textarea></label><label class="field"><span>Ссылка на опубликованный текст</span><input id="editPublication" type="url" value="${esc(d.publication_url)}" placeholder="https://…"></label>` : `<label class="field"><span>Основной черновик</span><textarea id="editManuscript" class="manuscript-input" placeholder="Начни с любой сцены…">${esc(d.manuscript)}</textarea></label>`}${isNote || d.kind === "manuscript" ? `<p class="text-stats" id="textStats">${statsLabel(isNote ? d.body : d.manuscript)}</p>` : ""}<p class="hint" id="draftStatus" role="status">Черновик на устройстве · ещё не в базе</p><div class="edit-actions"><button class="ghost" data-action="discard">Отменить правки</button><button class="primary" data-action="save">Сохранить в базе</button></div>${d.id ? '<button class="auth-link" data-action="savecopy">Сохранить отдельную копию</button>' : ""}${isNote && d.id ? '<button class="danger" data-action="delete">В корзину</button>' : ""}</div>`;
 }
 function capture() {
   const d = state.draft;
   if (!d) return;
+  captureCharacter(d, root);
   for (const [id, key] of [
     ["editTitle", "title"],
     ["editProject", "project_id"],
@@ -419,7 +426,11 @@ async function save() {
   rememberDraft();
   if (d.kind === "note") {
     const fields = noteInput(d);
-    if (!d.title.trim() && !d.body.trim())
+    if (
+      !d.title.trim() &&
+      !d.body.trim() &&
+      !(d.noteType === "character" && hasCharacterData(d.character_profile))
+    )
       throw new Error("Запиши хотя бы одну мысль.");
     const saved = d.id
       ? await updateRecord("notes", d, fields)
@@ -726,7 +737,7 @@ async function run(operation) {
     }
   }
 }
-async function action(name) {
+async function action(name, actionIndex) {
   switch (name) {
     case "downloadtext": {
       const project = projectOf(state.nav);
@@ -842,6 +853,38 @@ async function action(name) {
       state.tag = null;
       render();
       break;
+    case "addcharacterfield": {
+      capture();
+      const draft = state.draft;
+      if (draft?.noteType !== "character") break;
+      draft.character_profile = characterProfile(draft.character_profile);
+      const fields = (draft.character_profile.custom ||= []);
+      if (fields.length >= 30)
+        throw new Error("Можно добавить до 30 своих полей.");
+      fields.push({ label: "", value: "" });
+      draft.characterSections = [
+        ...new Set([...(draft.characterSections || []), "custom"]),
+      ];
+      rememberDraft({ readForm: false });
+      renderInspector();
+      document
+        .querySelector(
+          '[data-character-custom="' +
+            (fields.length - 1) +
+            '"][data-custom-key="label"]',
+        )
+        ?.focus();
+      break;
+    }
+    case "removecharacterfield": {
+      capture();
+      const index = Number(actionIndex);
+      if (state.draft?.character_profile?.custom && Number.isInteger(index))
+        state.draft.character_profile.custom.splice(index, 1);
+      rememberDraft({ readForm: false });
+      renderInspector();
+      break;
+    }
     case "addlink":
       capture();
       state.draft.links.push({ title: "", url: "" });
@@ -954,7 +997,7 @@ root.addEventListener("click", (e) => {
   }
   const a = e.target.closest("[data-action]");
   if (a) {
-    run(() => action(a.dataset.action));
+    run(() => action(a.dataset.action, a.dataset.characterIndex));
     return;
   }
   const nav = e.target.closest("[data-nav]");
